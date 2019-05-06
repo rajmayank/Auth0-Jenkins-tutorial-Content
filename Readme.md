@@ -1,7 +1,9 @@
 # Installing Jenkins and Setting up CICD Pipeline
 
 ### Introduction
-<TBD>
+Jenkins is the "leading open source automation server". It can be used to automated various parts of a development workflow like running test cases, deploying the latest build or even automate the complete CICD pipeline. It can be configured to run these tasks in any environment or even dedicated containers. You can run Jenkins in a distributed fashion allowing you to scale the work and also run them simultaneously on different environments like running test cases for a Angular Project in various browsers and versions simultaneously. With many plugins available it is easy to integrate and communicate with external services like Git, Slack etc.
+
+In this tutorial, you will learn to setup a Jenkins instance. You will also see how to make use of the latest Blue Ocean Plugin interface and integrate with GitHub to run automated tests.
 
 ### 1. Installing Jenkins
 
@@ -198,28 +200,28 @@ You can also see the build status on Jenkins as below:
 
 ![Jenkins Build Status](images/jenkins_PIpeLine_Build_Status.png)
 
-In this step, you triggered the job by pushing the commit to GitHub. Any new commit to this repository will now trigger builds and the the end result would be automatically updated on GitHub.
+In this step, you triggered the job by pushing the commit to GitHub. Any new commit to this repository will now trigger builds and the end result would be automatically updated on GitHub.
 
 ### 8. Recording Test Results and Artifacts
 
-Whenever a new build is initiated, it is started with a shallow clone of the branch on which the build is triggered i.e. a new folder is created and the branch on which the action was made is cloned in it. This is done to ensure that each build is isolated from the other. This also means that for 10 build you will have 10 folders somewhere in the server where Jenkins is hosted with clone of your repository. This is not a ideal situation, you do not want to keep a copy of each and every run. For ths reason, at the end of each build, a cleanup process automatically deletes the folder. Now this raises a another question - "I don't want to keep the whole codebase of each build but only the result of the test cases, will deleting the folder not delete that as well?". The answer is - No. Jenkins has the concept of "Artifacts". Any file/folder that you may want to keep even after the build is completed, you can add it to the build artifacts, which are preserved for each build. If you are curious, you can see the location where these folders are created is `/var/lib/jenkins/workspace/`.
+Whenever a new build is initiated, it is started with a shallow clone of the branch on which the build is triggered i.e. a new folder is created and the branch on which the action was made is cloned in it. This is done to ensure that each build is isolated from the other. This also means that for 10 build you will have 10 folders somewhere in the server where Jenkins is hosted with clone of your repository. This is not an ideal situation, you do not want to keep a copy of each and every run. For this reason, at the end of each build, a cleanup process automatically deletes the folder. Now this raises an another question - "I don't want to keep the whole codebase of each build but only the result of the test cases, will delete the folder not delete that as well?". The answer is - No. Jenkins has the concept of "Artifacts". Any file/folder that you may want to keep even after the build is completed, you can add it to the build artifacts, which are preserved for each build. If you are curious, you can see the location where these folders are created is '/var/lib/jenkins/workspace/'.
 
 You will now add real world test cases to your project and also make sure that the results of these test cases are captured in Jenkins. Jenkins understands JUnit XML format of test results which is considered to be a standard. Every test runner today has some or the other way to give report in JUnit XML. This tutorial will use [MochaJS](https://mochajs.org/) as a testing framework.
 
-Start by inititalizing a npm module by runnign the following command:
+Start by inititalizing a npm module by running the following command:
 
 ```bash
 $ npm init -y
 ```
 
-Next add the two dependancies that the app needs:
+Next add the two dependencies that the app needs:
 
 ```bash
-$ npm install --save-dev mocha 					# our test case runner
-$ npm install --save-dev mocha-jenkins-reporter 	# repor results in JUnit XML
+$ npm install --save-dev mocha # our test case runner
+$ npm install --save-dev mocha-jenkins-reporter # repor results in JUnit XML
 ```
 
-Next create a file `test.js` and write a few sample test cases. You can use the below code:
+Next create a file 'test.js' and write a few sample test cases. You can use the below code:
 
 ```javascript
 var assert = require('assert');
@@ -242,7 +244,7 @@ describe('Type Comparison', function() {
         assert.equal(('5' === 5), false);
     });
 });
-````
+```
 
 Use the following command to now run these test cases:
 
@@ -256,21 +258,20 @@ You will notice that all the test cases passes. Try altering values to see the r
 $ JUNIT_REPORT_PATH=./test-results.xml ./node_modules/mocha/bin/mocha --reporter mocha-jenkins-reporter
 ```
 
-This will save the results to a file at `./test-results.xml`. You will now instruct Jenkins Pipeline to use this file to. First push this new updated code with:
+This will save the results to a file at './test-results.xml'. You will now instruct Jenkins Pipeline to use this file to. First push this new updated code with:
 
 ```bash
 $ git add . && git commit -m "Added Test Cases" && git push origin master
 ```
 
-Now that the application has few test cases, the next step is to tell Jenkins how to run these test cases and where to find the XML Report fo the same. Head over to the pipeline editor and add the following steps:
-1. Install Dependancies
+Now that the application has few test cases, the next step is to tell Jenkins how to run these test cases and where to find the XML Report for the same. Head over to the pipeline editor and add the following steps:
+1. Install Dependencies
 2. Run Test Cases
 3. Archive JUnit-formatted test results
 
-Begin by adding a new step in the pipeline to install dependancies. This is done with the command `npm install -dev`. To run this command add a new stage that runs this command. Your pipeline with this new stage should look like this:
+Begin by adding a new step in the pipeline to install dependancies. This is done with the command 'npm install -dev'. To run this command add a new stage that runs this command. Your pipeline with this new stage should look like this:
 
 ![Jenkins_PipleLine_Editor_6](images/Jenkins_PipleLine_Editor_6.png)
-
 
 Next step is to run the command that will run the test cases. Like the last step add a step that executes the command you had used earlier to run test cases and build JUnit XML.
 
@@ -278,54 +279,54 @@ Next step is to run the command that will run the test cases. Like the last step
 
 Click on "Save" to save this updated pipeline. Note that any global dependencies that you application needs to run any stages, need to be installed on the server. In this case these are node and npm.
 
-Finally we need to add the step to capture this JUnit formatted results file. You can go ahead and create a step for it but the correct way is to add it in the `Post` stage of the pipeline. The pipeline visual editor, for now doesn't allow you to edit the post section. For this, you will be updating the `Jenkinsfile` directly. Open this file at the root of your repository and add the following at the level of `stages`:
+Finally we need to add the step to capture this JUnit formatted results file. You can go ahead and create a step for it but the correct way is to add it in the 'Post' stage of the pipeline. The pipeline visual editor, for now doesn't allow you to edit the post section. For this, you will be updating the 'Jenkinsfile' directly. Open this file at the root of your repository and add the following at the level of 'stages':
 
 ```XML
-  post {
+post {
     always {
-      junit 'test-results.xml'
+        junit 'test-results.xml'
     }
-  }
+}
 ```
 
-Your final `Jenkisfile` should now look like:
+Your final 'Jenkisfile' should now look like:
 
 ```XML
 pipeline {
-  agent any
-  stages {
-    stage('Check for file-1.txt') {
-      steps {
-        sh 'cat file-1.txt'
-      }
+    agent any
+    stages {
+        stage('Check for file-1.txt') {
+            steps {
+                sh 'cat file-1.txt'
+            }
+        }
+        stage('Check for file-2.txt') {
+            steps {
+                sh 'cat file-2.txt'
+            }
+        }
+        stage('npm install') {
+            steps {
+                sh 'npm install'
+            }
+        }
+        stage('Run Tests') {
+            steps {
+                sh 'JUNIT_REPORT_PATH=./test-results.xml ./node_modules/mocha/bin/mocha --reporter mocha-jenkins-reporter'
+            }
+        }
     }
-    stage('Check for file-2.txt') {
-      steps {
-        sh 'cat file-2.txt'
-      }
+    post {
+        always {
+            junit 'test-results.xml'
+        }
     }
-    stage('npm install') {
-      steps {
-        sh 'npm install'
-      }
-    }
-    stage('Run Tests') {
-      steps {
-        sh 'JUNIT_REPORT_PATH=./test-results.xml ./node_modules/mocha/bin/mocha --reporter mocha-jenkins-reporter'
-      }
-    }
-  }
-  post {
-    always {
-      junit 'test-results.xml'
-    }
-  }
 }
-``` 
+```
 
 Add and commit this file to your repository. When
 
-Now when you go to see your build on Jenkins, you will see that the "Tests" tab on the top is pipulated with results of your test cases. When all the test cases pass, you can see the message "All tests are passing" like so:
+Now when you go to see your build on Jenkins, you will see that the "Tests" tab on the top is populated with results of your test cases. When all the test cases pass, you can see the message "All tests are passing" like so:
 
 ![Jenkins_PipleLine_TestCases_1](images/Jenkins_PipleLine_TestCases_1.png)
 
@@ -333,13 +334,11 @@ Now whenever any test case fails, you will be able to see it in this tab. Notice
 
 ![Jenkins_PipleLine_TestCases_2](images/Jenkins_PipleLine_TestCases_2.png)
 
-
-In this step you learnt hor to record the results of test cases. You also saw how the status of individual tets cases are tracked over builds.
+In this step you learned how to record the results of test cases. You also saw how the status of individual test cases are tracked over builds.
 
 ### 9. Exploring plugins
 
-Just like any other opensourced projects, plugins are what gives Jenkins the power to do a lot more. You can find various plugins [here](https://plugins.jenkins.io/). You can find plugins that can notify the build status to your slack channel ([Slack Notification](https://plugins.jenkins.io/slack)). If you want to take your Jenkins setup towards the Kubernetes route you have the [Kubernetes Plugin](https://plugins.jenkins.io/kubernetes), or if you prefer to use cloud container services there are options like [Amazon Elastic Container Service](https://plugins.jenkins.io/amazon-ecs) and [Azure Container Service](https://plugins.jenkins.io/azure-acs).
-
+Just like any other open sourced projects, plugins are what gives Jenkins the power to do a lot more. You can find various plugins [here](https://plugins.jenkins.io/). You can find plugins that can notify the build status to your slack channel ([Slack Notification](https://plugins.jenkins.io/slack)). If you want to take your Jenkins setup towards the Kubernetes route you have the [Kubernetes Plugin](https://plugins.jenkins.io/kubernetes), or if you prefer to use cloud container services there are options like [Amazon Elastic Container Service](https://plugins.jenkins.io/amazon-ecs) and [Azure Container Service](https://plugins.jenkins.io/azure-acs).
 
 ### Conclusion
-<TBD>
+Congratulations. You now have a Jenkins setup that you and your team can use to test the sanity of your codebase automatically at each push. You will also be able to track the history of your builds, see when a certain test case fails and for how many commits it has been failing. You will also be able to perform integration testing after a pull request is merged.
